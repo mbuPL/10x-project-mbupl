@@ -10,31 +10,25 @@ Supply configuration through `DB_PATH`, `DB_USERNAME`, `DB_PASSWORD`, and `PORT`
 
 ## Build, Test, and Development Commands
 
-Run commands from the repository root (`cd ..` from this directory) so the relative database path stays consistent:
+Run commands from the repository root (`cd ..` from this directory) so the relative database path stays consistent. Use the checked-in Maven wrapper. See @../README.md for requirements, startup, full verification, and the health endpoint; @../pom.xml defines the compilation target.
 
-- `./mvnw spring-boot:run` — start the backend on port 8080 by default.
-- `./mvnw verify` — run tests and package the executable JAR into `target/`.
 - `./mvnw -Dtest=H2PersistenceTests test` — run the persistence regression test.
-
-Use the checked-in Maven wrapper with JDK 21 or newer; @../pom.xml defines the Java 21 compilation target. The health endpoint is `/api/health`.
 
 ## Source Layout and Coding Style
 
 - `main/java/pl/skarbkibica/`: application sources; place backend packages beneath `pl.skarbkibica`.
-- `main/resources/`: runtime configuration.
-- `test/java/pl/skarbkibica/`: backend tests.
 - `../frontend/`: separate Angular application; static assets live in `../frontend/public/`.
 
-Follow @main/java/pl/skarbkibica/SkarbKibicaApplication.java: tab indentation, opening braces on the declaration line, PascalCase class filenames, and camelCase methods. No Java formatter or linter is configured.
+Follow @main/java/pl/skarbkibica/SkarbKibicaApplication.java: tab indentation and opening braces on the declaration line. No Java formatter or linter is configured.
 
 ## Testing Guidelines
 
-Use JUnit Jupiter and AssertJ, with classes named `*Tests.java` and descriptive camelCase test methods. Follow @test/java/pl/skarbkibica/SkarbKibicaApplicationTests.java for context tests using in-memory H2.
+Use JUnit Jupiter and AssertJ, with classes named `*Tests.java`. Name test methods in camelCase to state the expected behavior and condition, as in `dataSurvivesApplicationRestart` in @test/java/pl/skarbkibica/H2PersistenceTests.java. Follow @test/java/pl/skarbkibica/SkarbKibicaApplicationTests.java for context tests using in-memory H2.
 
 For persistence changes, follow @test/java/pl/skarbkibica/H2PersistenceTests.java: use `@TempDir`, close the application context, then reopen the same database and assert retained data. No coverage threshold or CI workflow is currently configured; run `./mvnw verify` locally.
 
 ## Commit and Pull Request Guidelines
 
-History primarily uses short Polish commit subjects, with one `chore:` prefix; no consistent Conventional Commits convention is established. Keep subjects descriptive of the change.
+History primarily uses short Polish commit subjects, with one `chore:` prefix; no consistent Conventional Commits convention is established. Name the affected backend element and the change in the commit subject, e.g. "Dodaj test trwałości danych H2 po restarcie".
 
 No PR template exists. Include the backend behavior changed, validation commands and results, and any schema or configuration impacts in the PR description.
