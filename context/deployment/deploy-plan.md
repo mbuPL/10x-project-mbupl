@@ -2,8 +2,9 @@
 project: skarb-kibica-ligi-koszykowki
 approved_at: 2026-09-22
 approval: User accepted the proposed plan with "Implement the plan."
-status: implementation_in_progress
-deployment_status: not_deployed
+status: completed_with_documented_deviations
+deployment_status: deployed
+production_url: https://backend-production-21c1.up.railway.app
 platform: Railway
 current_billing: trial_5_usd_user_authorized
 environment: production
@@ -36,6 +37,15 @@ i zaakceptował ryzyko utraty danych. Snapshoty, eksport H2 do bucketu oraz
 odtwarzanie są **poza MVP**, bez bramki blokującej przyszłe dane biznesowe.
 To zastępuje pierwotny warunek przygotowania kopii przed rzeczywistymi danymi.
 Trwały wolumen pozostaje wymagany, ale nie jest kopią zapasową.
+
+**Aktualizacja użytkownika podczas implementacji, 2026-09-22:** nie rejestrować
+nowego dostępu SSH. Railway CLI 5.59.0 wymaga zarejestrowanego klucza także dla
+`volume files` (SFTP). Test markera i bezpośredni odczyt pliku H2 na Railway są
+zatem pominięte za wiedzą użytkownika. Kontrole live obejmują tożsamość/stan
+wolumenu, logi otwarcia plikowej H2 i HTTP po restarcie/redeploy/rollback;
+nie są dowodem zachowania konkretnego rekordu. Testy rekordów H2 i trwałości
+kontenera pozostają wykonywane w CI.
+
 W tym wdrożeniu nie powstają funkcje koszykarskie, konto administratora ani
 migracje pustego schematu.
 
@@ -65,8 +75,9 @@ zamierzone wykonanie; wynik i niewykonane działania rejestruje końcowy dzienni
 
 ## 2. Konto i przygotowanie zasobów
 
-Właściciel zakłada konto Railway, aktywuje Hobby, ustawia alert i limit kosztów,
-wykonuje logowanie oraz wprowadza poufne wartości bezpośrednio w panelach.
+Właściciel zakłada konto Railway, wykonuje logowanie oraz wprowadza poufne
+wartości bezpośrednio w panelach. Zgodnie z aktualizacją powyżej aktywację Hobby,
+alert i limit kosztów odłożono na później; publikacja korzysta z trial 5 USD.
 Agent nie przyjmuje haseł/tokenów w rozmowie ani nie zapisuje ich w repozytorium.
 
 Po uzyskaniu konta wykonać kolejno (zmienne `*_ID` pochodzą z odpowiedzi CLI):
@@ -182,6 +193,11 @@ Podsumowanie joba zapisuje SHA, ID wdrożenia i URL, bez wartości sekretów.
 - Na Railway po restarcie i ponownym wdrożeniu sprawdzić marker wolumenu,
   obecność `.mv.db` i health. Marker dowodzi trwałości dysku, nie poprawności
   rekordów ani odzyskiwania danych. Nie dodawać publicznego endpointu SQL.
+  **Odstępstwo zatwierdzone:** bez nowego SSH, zamiast markera/odczytu pliku
+  sprawdzić ten sam wolumen przez API i otwarcie H2 w logach, z powyższym
+  ograniczeniem dowodu. CI sprawdza zachowanie markera i pliku H2 po restarcie
+  oraz wymianie kontenera; osobny test JDBC potwierdza trwałość rekordów po
+  ponownym otwarciu bazy.
 - Zmierzyć pamięć po rozgrzaniu i sprawdzić prognozę kosztów; nie zwiększać
   automatycznie zaakceptowanego limitu 10 USD.
 - Po dwóch udanych wdrożeniach przećwiczyć Railway Deployments → poprzednie
@@ -202,20 +218,31 @@ Podsumowanie joba zapisuje SHA, ID wdrożenia i URL, bez wartości sekretów.
 | Environment ID | `948f164e-3d86-4795-9414-e770dd8d3a91` (`production`) |
 | Service ID | `af163e6c-7d97-4dff-9b52-8d75f1e7d3a9` (`backend`) |
 | Konfiguracja usługi | Amsterdam, Dockerfile, jedna replika, sleep off, `/api/health`, timeout 300 s, ON_FAILURE/3, limit 1 vCPU / 1 GB; zapisane przez API |
-| GitHub | CLI połączone; environment `production` dopuszcza wyłącznie `main`; `RAILWAY_DEPLOY_ENABLED=false`; main wymaga PR i udanego checka `verify` |
-| Pull request | [#1](https://github.com/mbuPL/10x-project-mbupl/pull/1), commit `c8daf221f647e619b80663c013b19cae0f1d0757` |
-| Domena produkcji | `https://backend-production-21c1.up.railway.app` — domena utworzona, aplikacja jeszcze nieopublikowana |
-| Wolumen | `3b76aa77-f42a-4b90-9fc7-78f2fb69f74e`; instance `73c27ca5-90da-41e7-883f-18024f2eaa96`, 500 MB trial, `/data`; weryfikacja/migracja regionu przed publikacją |
+| GitHub | CLI połączone; environment `production` dopuszcza wyłącznie `main`; `RAILWAY_DEPLOY_ENABLED=true`; main wymaga PR i udanego checka `verify` |
+| Pull request | [#1](https://github.com/mbuPL/10x-project-mbupl/pull/1) połączony po zielonym CI; merge `8db50b1f1bc3a2010398518be5b0553969030654` |
+| Domena produkcji | [Publiczny szkielet](https://backend-production-21c1.up.railway.app), HTTPS i `/api/health` PASS |
+| Wolumen | `3b76aa77-f42a-4b90-9fc7-78f2fb69f74e`, 500 MB trial, `/data`; Amsterdam `europe-west4-drams3a`, `READY`. Pierwszy deploy automatycznie przeniósł dane z SFO, zmieniając instance `73c27ca5-90da-41e7-883f-18024f2eaa96` na `1d234948-58bd-4b9a-8814-fda0db011ecb`; trwałe volume ID pozostało to samo |
 | Sekrety Railway / GitHub | Właściciel potwierdził sealed `DB_PASSWORD`; zmiana zatwierdzona w środowisku. `RAILWAY_TOKEN` zapisany przez właściciela w GitHub production, potwierdzono wyłącznie nazwę sekretu |
 | Backupy | Wyłączone. API odrzuciło ustawienie harmonogramu; właściciel potwierdził w panelu wymóg Pro i zaakceptował brak backupów w MVP |
-| Publikacja / rollback / pomiary | Niewykonane |
+| SSH / test markera live | Właściciel odmówił rejestracji nowego dostępu SSH; marker i bezpośredni odczyt `.mv.db` na Railway niewykonane |
+| Pierwsza publikacja | [CI 35778276743](https://github.com/mbuPL/10x-project-mbupl/actions/runs/35778276743) PASS; deployment `cbf97988-529b-465c-a8d5-905465483c39` SUCCESS o 20:13:38 UTC, SHA `8db50b1f1bc3a2010398518be5b0553969030654`; publiczny smoke PASS |
+| Restart | 20:14:30 UTC mutacja `deploymentRestart` dla pierwszego deploymentu; logi: graceful shutdown, ponowne montowanie wolumenu, start JVM 20:14:33, otwarcie H2 20:14:36, aplikacja gotowa 20:14:38. Około 8 s od żądania do startu aplikacji (nie pomiar pełnej niedostępności HTTP); ten sam wolumen/region, smoke HTTPS PASS |
+| Ponowne wdrożenie | Ręczny [CI 35779071810](https://github.com/mbuPL/10x-project-mbupl/actions/runs/35779071810) dla tego samego SHA, verify i deploy PASS. Deployment `8569d68e-f222-4487-95cb-77b1138d207a` SUCCESS; log ponownie otwiera H2 o 20:19:43 UTC na tym samym wolumenie. HTTPS smoke PASS |
+| Rollback | Po potwierdzeniu `canRollback=true` mutacja `deploymentRollback` o 20:20:41 UTC wskazała pierwszy deployment. Powstał `e799f854-8bee-4ee1-85d2-68ed0631f6e0`, SUCCESS o 20:20:52 UTC (około 11 s). Odczyt SUCCESS i pełny smoke HTTPS potwierdzono w około 25 s od zlecenia; to nie dokładny pomiar czasu niedostępności. Ten sam wolumen/instance w Amsterdamie, `READY`, H2 otwarta poprawnie. Próba dotyczyła poprzedniego artefaktu z identycznym kodem, nie zmiany schematu ani odzyskiwania rekordów |
+| Pomiar zasobów | Około 20:16 UTC: RAM 0,214 GB / 1 GB, CPU ostatnia próbka 0 i maksimum 0,219 vCPU / 1, `/data` około 33 MB / 500 MB. Sześć aktywnych próbek od 20:13:30 obejmuje rozruch i smoke, nie reprezentatywne obciążenie MVP |
+| Koszty | Trial 5 USD według decyzji właściciela; `workspaceUsage.usageLimit=null`. API zwracało okres kończący się tego dnia, opóźnione/niespójne jeszcze agregaty i szacunek około 0,00002 USD dla tego okresu — nie jest to prognoza miesięczna. Miesięcznego kosztu nie potwierdzono; właściciel monitoruje kredyt i przed przejściem na Hobby ustawia 8/10 USD |
 | Testy Java 21.0.6 | 38 PASS, w tym 36 przypadków HTTP SPA i trwałość rekordów H2 |
 | Testy skryptu wdrażania | 25 PASS, obejmujące sukces właściwego ID, błędy, timeout i nieaktualny SHA |
 | Zintegrowany JAR | Zbudowany w katalogu tymczasowym z Angulariem; pełny `smoke-http.sh` PASS na Java 21 |
 | Test kontenera Linux | [CI 35776436948](https://github.com/mbuPL/10x-project-mbupl/actions/runs/35776436948) PASS: Node 24.20.0, Java 21.0.12, 38 testów backendu, 2 frontendowe, 25 testów skryptu, 5 błędnych konfiguracji startu, HTTP oraz restart i wymiana kontenera |
 
-Wpisy będą aktualizowane na podstawie wykonanych kontroli; przygotowany kod
-nie oznacza wdrożonej produkcji.
+Wpisy rejestrują wykonane kontrole pierwszego wydania. Kolejne wdrożenia, także
+zmian dokumentacji, zapisują bieżące SHA i deployment ID w GitHub Actions.
+Pierwszy log runtime potwierdził Java 21.0.12 i połączenie
+`jdbc:h2:file:/data/skarb-kibica`; nie odczytywano hasła ani zawartości bazy.
+Próba wizualnej kontroli przeglądarką nie powiodła się z powodu błędu narzędzia
+`Cannot redefine property: process`. Sprawdzone są odpowiedzi HTTP i zasoby;
+nie deklarujemy wykonanego testu renderowania Angulara w przeglądarce.
 
 ## Źródła operacyjne
 

@@ -2,9 +2,12 @@
 
 Szkielet aplikacji: Spring Boot 4.1.1, Java 21, Maven Wrapper, Angular 22 i H2 w trwałym trybie plikowym. Backend pochodzi ze Spring Initializr, frontend z Angular CLI 22.1.8.
 
+Produkcja: [backend-production-21c1.up.railway.app](https://backend-production-21c1.up.railway.app)
+— techniczny szkielet, jeszcze bez funkcji koszykarskich i logowania.
+
 ## Wymagania
 
-- JDK 21 lub nowszy zgodny ze Spring Boot (zweryfikowano na JDK 25).
+- JDK 21 lub nowszy zgodny ze Spring Boot (zweryfikowano lokalnie na JDK 21 i w kontenerze na Java 21).
 - Node.js 24.15+ z linii 24 i npm (zweryfikowano na Node 24.20.0 i npm 11.19.0).
 - Maven pobierze się przez dołączony wrapper przy pierwszym uruchomieniu.
 
@@ -39,7 +42,7 @@ Konfigurację można przekazać zmiennymi środowiskowymi:
 | `DB_PASSWORD` | pusta | Hasło bazy; ustaw w środowisku docelowym. |
 | `PORT` | `8080` | Port backendu; zmiana wymaga też dopasowania proxy frontendu. |
 
-Przykład z trwałym wolumenem: `DB_PATH=/data/skarb-kibica`. Docelowo jedna usługa Railway Hobby w Amsterdamie serwuje backend i Angulara, a H2 korzysta z wolumenu `/data`. Kontener odmawia startu bez hasła, właściwej ścieżki i rzeczywistego montowania tego wolumenu. H2 działa jako baza osadzona; konsola webowa jest wyłączona. Użytkownik zdecydował pozostawić snapshoty, eksport H2 i odtwarzanie poza MVP, akceptując ryzyko utraty danych. Trwały wolumen nie jest kopią zapasową.
+Przykład z trwałym wolumenem: `DB_PATH=/data/skarb-kibica`. Jedna usługa Railway w Amsterdamie serwuje backend i Angulara, a H2 korzysta z wolumenu `/data` (500 MB na obecnym trial). Kontener odmawia startu bez hasła, właściwej ścieżki i rzeczywistego montowania tego wolumenu. H2 działa jako baza osadzona; konsola webowa jest wyłączona. Użytkownik zdecydował pozostawić snapshoty, eksport H2 i odtwarzanie poza MVP, akceptując ryzyko utraty danych. Trwały wolumen nie jest kopią zapasową.
 
 Automatyczne tworzenie/usuwanie schematu Hibernate jest wyłączone (`ddl-auto=none`). Przed dodaniem encji należy przygotować migracje schematu; ten szkielet nie zawiera jeszcze tabel biznesowych.
 
@@ -75,11 +78,11 @@ z tym samym wolumenem. Używa własnych tymczasowych kontenerów, hasła i danyc
 Publiczną instancję można sprawdzić poleceniem:
 
 ```sh
-bash scripts/smoke-http.sh https://NAZWA.up.railway.app
+bash scripts/smoke-http.sh https://backend-production-21c1.up.railway.app
 ```
 
-Workflow GitHub Actions wykonuje check `verify` na PR i `main`. Wdrażanie
-jest początkowo wyłączone. Wymaga repozytoryjnej zmiennej
+Workflow GitHub Actions wykonuje check `verify` na PR i `main`. Automatyczne
+wdrażanie po merge jest włączone. Wymaga repozytoryjnej zmiennej
 `RAILWAY_DEPLOY_ENABLED=true` oraz środowiska GitHub `production` z sekretem
 `RAILWAY_TOKEN` i zmiennymi `PROJECT_ID`, `ENVIRONMENT_ID`, `SERVICE_ID`, `APP_URL`.
 Token należy ograniczyć do projektu i środowiska produkcyjnego Railway.
@@ -94,4 +97,4 @@ Nie włączać dodatkowo natywnych autodeployów Railway ani środowisk PR.
 
 ## Zakres szkieletu
 
-Funkcje koszykarskie, logowanie administratora i migracje pozostają do implementacji zgodnie z [PRD](context/foundation/prd.md). Na tym etapie dostępny jest techniczny szkielet, kontrola stanu backendu i bazy oraz konfiguracja kontenera i CI/CD. Publikacja wymaga konta Railway i podłączenia sekretów; samo istnienie workflow nie oznacza wdrożonej produkcji. Dokumentacja decyzji znajduje się w [wyborze stosu](context/foundation/tech-stack.md).
+Funkcje koszykarskie, logowanie administratora i migracje pozostają do implementacji zgodnie z [PRD](context/foundation/prd.md). Na tym etapie opublikowany jest techniczny szkielet, kontrola stanu backendu i bazy oraz konfiguracja kontenera i CI/CD. Pierwszy produkcyjny [przebieg CI](https://github.com/mbuPL/10x-project-mbupl/actions/runs/35778276743) przeszedł wraz z testami publicznego HTTPS. Dokumentacja decyzji znajduje się w [wyborze stosu](context/foundation/tech-stack.md), a wyniki prób operacyjnych i ich ograniczenia w planie wdrożenia.

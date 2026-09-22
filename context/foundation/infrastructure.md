@@ -10,7 +10,9 @@ tech_stack:
   runtime: JVM 21; Node.js 24.15+ z linii 24 podczas budowania frontendu
 decision_status: accepted
 decision_by: user
-deployment_status: not_deployed
+deployment_status: deployed
+production_url: https://backend-production-21c1.up.railway.app
+current_billing: trial_5_usd_user_authorized
 backup_status: disabled_user_accepted_risk_outside_mvp
 region: europe-west4-drams3a
 plan: Hobby
@@ -38,10 +40,10 @@ Ta decyzja zastępuje wcześniejsze założenie Fly.io w `tech-stack.md` i opis 
 | Produkt | Autor i kilka osób; publiczny odczyt, jeden administrator, cztery tygodnie pracy po godzinach; brak wymagań SLA lub konkretnego czasu odpowiedzi. |
 | Backend | Spring Boot 4.1.1, Java 21, Maven Wrapper 3.9.16. |
 | Frontend | Angular 22.1.7, CLI/build 22.1.8, TypeScript 6.0.3, npm 11.19.0; dla budowania przyjmujemy Node 24.20.0, użyty przy bootstrapowaniu. |
-| Dane | Osadzone H2 2.4.240, wersja zarządzana przez BOM Spring Boot; trwały plik, jedna instancja backendu, kopia poza wolumenem. |
-| Stan repozytorium | Szkielet i `/api/health`; brak wdrożenia, CI, logowania, migracji i funkcji biznesowych. Backend i frontend budowane osobno. |
+| Dane | Osadzone H2 2.4.240, wersja zarządzana przez BOM Spring Boot; trwały plik, jedna instancja backendu. Pierwotnie rekomendowaną kopię poza wolumenem użytkownik odłożył poza MVP. |
+| Stan repozytorium po wdrożeniu | Opublikowany szkielet i `/api/health`; Docker oraz CI/CD, wspólnie pakowane backend i frontend. Nadal brak logowania, migracji i funkcji biznesowych. |
 
-Docelowy wariant MVP: jedna usługa `backend`, która po przygotowaniu wspólnego pakowania serwuje również statyczne pliki Angulara. Jedna domena i względne `/api` upraszczają konfigurację. Node jest potrzebny w procesie budowania, nie jako drugi stale działający serwer. Jest to rekomendacja sposobu pakowania, jeszcze nie zaimplementowana.
+Wdrożony wariant: jedna usługa `backend`, która serwuje również statyczne pliki Angulara z JAR-a. Jedna domena i względne `/api` upraszczają konfigurację. Node jest potrzebny w procesie budowania, nie jako drugi stale działający serwer. Wyniki wdrożenia i testów zawiera [dziennik planu](../deployment/deploy-plan.md).
 
 ## Platform Comparison
 
@@ -60,8 +62,8 @@ poniższą historię operacyjną dla szkieletu:
 - W pierwszym etapie wyłącznie `production`; zamiast płatnych PR Environments
   testy gotowego kontenera w GitHub Actions. Opis PR Environments poniżej
   pozostaje możliwością na późniejszy etap.
-- Alert kosztów 8 USD, hard limit 10 USD; użytkownik akceptuje ryzyko zatrzymania
-  aplikacji. Sleep pozostaje wyłączony.
+- Docelowy alert kosztów 8 USD i hard limit 10 USD właściciel ustawi po przejściu
+  na Hobby; nie są aktywne na trial. Sleep pozostaje wyłączony.
 - Późniejsza decyzja użytkownika z tego samego dnia zastępuje pierwotny wymóg
   kopii: panel wskazał backupy jako funkcję Pro, a użytkownik świadomie pozostawił
   snapshoty, eksport H2 i restore **poza MVP**, akceptując utratę danych.
@@ -177,7 +179,7 @@ Po sześciu miesiącach aplikacja przestaje być wiarygodnym źródłem wyników
 - **Secrets**: `DB_PASSWORD` i przyszłe sekrety administratora w Variables usługi/środowiska, poufne wartości jako sealed; są dostępne buildowi/runtime, ale po zapieczętowaniu nie przez UI/API. Zwykłe zmienne mogą odczytać uprawnione konta/tokeny. Token projektu i środowiska trafia do `RAILWAY_TOKEN`, nigdy do repo lub rozmowy; `RAILWAY_API_TOKEN` oznacza szerszy token konta/workspace. Pierwsze linkowanie wykonywać po logowaniu użytkownika. Rotację głównego sekretu wykonuje człowiek; zmiana samego `DB_PASSWORD` nie zmienia automatycznie hasła istniejącego użytkownika H2. [Variables][railway-variables], [API/tokeny][railway-api].
 - **Rollback**: Railway → usługa → Deployments → wybrane wcześniejsze poprawne wdrożenie → menu → Rollback; alternatywnie udokumentowana mutacja `deploymentRollback` po sprawdzeniu `canRollback`. Przywrócony obraz i custom variables wymagają sprawdzenia `/api/health`, logowania oraz danych H2. H2 i migracje nie cofają się automatycznie. Planowany czas próby odzyskania 5–15 minut jest celem do zmierzenia, nie gwarancją; obrazy poza retencją wymagają rebuild. [Deployment actions][railway-actions], [API wdrożeń][railway-deployment-api].
 - **Approval**: pierwsza publikacja produkcyjna dopiero po zatwierdzeniu `context/deployment/deploy-plan.md`. W ramach zatwierdzonego zakresu agent może przygotować konfigurację, testy, podglądy i odczytywać logi. Docelowy auto-deploy po merge do `main` wymaga przygotowania kontroli CI i świadomego merge; ten dokument go nie konfiguruje. Usuwanie bazy/wolumenu/projektu i rotacja głównego sekretu należą do człowieka zgodnie z `AGENTS.md`. Odczytowy sposób pracy agenta na produkcji jest regułą operacyjną: token projektu Hobby **nie jest** tokenem tylko do odczytu. [Tokeny][railway-api].
-- **Logs**: odczyt runtime: `railway logs --service backend --environment production --lines 100 --json`; build: to samo z `--build --latest`; strumień: bez `--lines`. Hobby przechowuje historię logów przez 7 dni. Nie wypisywać zmiennych, haseł ani credentials bucketu do logów. Workflow GitHub Actions jeszcze nie istnieje. [CLI logs][railway-logs], [limity planów][railway-pricing-page].
+- **Logs**: odczyt runtime: `railway logs --service backend --environment production --lines 100 --json`; build: to samo z `--build --latest`; strumień: bez `--lines`. Hobby przechowuje historię logów przez 7 dni. Nie wypisywać zmiennych, haseł ani credentials bucketu do logów. Wdrożenie z GitHub Actions zapisuje SHA, deployment ID i wynik testów HTTPS w podsumowaniu joba. [CLI logs][railway-logs], [limity planów][railway-pricing-page].
 
 ### Backup and recovery baseline
 
