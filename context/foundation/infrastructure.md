@@ -11,6 +11,7 @@ tech_stack:
 decision_status: accepted
 decision_by: user
 deployment_status: not_deployed
+backup_status: disabled_user_accepted_risk_outside_mvp
 region: europe-west4-drams3a
 plan: Hobby
 ---
@@ -43,6 +44,34 @@ Ta decyzja zastępuje wcześniejsze założenie Fly.io w `tech-stack.md` i opis 
 Docelowy wariant MVP: jedna usługa `backend`, która po przygotowaniu wspólnego pakowania serwuje również statyczne pliki Angulara. Jedna domena i względne `/api` upraszczają konfigurację. Node jest potrzebny w procesie budowania, nie jako drugi stale działający serwer. Jest to rekomendacja sposobu pakowania, jeszcze nie zaimplementowana.
 
 ## Platform Comparison
+
+### Ustalenia wykonawcze zaakceptowane 2026-09-22
+
+Zatwierdzony [plan pierwszego wdrożenia](../deployment/deploy-plan.md) konkretyzuje
+poniższą historię operacyjną dla szkieletu:
+
+- Podczas implementacji użytkownik wybrał pierwszą publikację na okresie próbnym
+  z kredytem 5 USD; płatne Hobby i limity 8/10 USD ustawi później. Nie aktywować
+  subskrypcji automatycznie. Rekomendacja Hobby dotyczy docelowego utrzymania,
+  a trial nie zapewnia ciągłości po wyczerpaniu kredytu lub upływie okresu.
+
+- Publikacja przez GitHub Actions po kontrolach PR i merge do `main`; wspólny
+  obraz Docker buduje Angulara i Spring Boot. Runtime: jedna JVM 21.
+- W pierwszym etapie wyłącznie `production`; zamiast płatnych PR Environments
+  testy gotowego kontenera w GitHub Actions. Opis PR Environments poniżej
+  pozostaje możliwością na późniejszy etap.
+- Alert kosztów 8 USD, hard limit 10 USD; użytkownik akceptuje ryzyko zatrzymania
+  aplikacji. Sleep pozostaje wyłączony.
+- Późniejsza decyzja użytkownika z tego samego dnia zastępuje pierwotny wymóg
+  kopii: panel wskazał backupy jako funkcję Pro, a użytkownik świadomie pozostawił
+  snapshoty, eksport H2 i restore **poza MVP**, akceptując utratę danych.
+  Poniższy baseline backupów opisuje pierwotną rekomendację badawczą, nie aktualny
+  warunek wdrożenia. Trwały wolumen nadal jest wymagany.
+- Konfiguracja usługi przez CLI/API i Dockerfile. Nie tworzyć `railway.toml/json`:
+  [Config as Code jest wycofywane](https://docs.railway.com/infrastructure-as-code).
+- Aktywny kontrakt stacka i README zostają uzgodnione z Railway. Stan wykonania,
+  identyfikatory zasobów oraz faktyczne testy zapisuje plan wdrożenia; historyczne
+  dzienniki bootstrapowania zachowują ówczesne założenia.
 
 ### Hard compatibility filters
 
@@ -152,6 +181,10 @@ Po sześciu miesiącach aplikacja przestaje być wiarygodnym źródłem wyników
 
 ### Backup and recovery baseline
 
+**Status po zatwierdzeniu wdrożenia:** poniższa rekomendacja nie jest realizowana
+w MVP. Użytkownik 2026-09-22 zaakceptował brak backupów i ryzyko utraty danych;
+mitigacja zostaje poza MVP. Nie traktować tego baseline jako aktywnej bramki.
+
 Włączyć dzienne kopie wolumenu (retencja 6 dni); opcjonalne tygodniowe mają 27 dni, miesięczne 89 dni. Dokumentacja opisuje tę funkcję jako nadal rozwijaną, bez aktualnej etykiety beta; ograniczenia sprawdzono 2026-09-22. Manual backup ma limit 50% pojemności wolumenu, a restore działa tylko w tym samym projekcie i środowisku. Przywrócenie tworzy nowy wolumen i pozostawia poprzedni odłączony; nowsze snapshoty pozostają przy starym wolumenie. [Backups][railway-backups].
 
 Niezależnie od snapshotów przygotować operację eksportu SQL `SCRIPT` lub spójnego `BACKUP TO` przez aktywne połączenie H2, a następnie przesłanie archiwum do prywatnego Railway Bucket w Amsterdamie (`ams`). Nie kopiować otwartego `.mv.db` zwykłym poleceniem plikowym; samodzielne narzędzie `org.h2.tools.Backup` wymaga zamkniętej bazy. Działanie `BACKUP TO` potwierdzono w kodzie H2 **2.4.240**. Mechanizm eksportu nie jest jeszcze zaimplementowany; dla MVP uruchamiać go po sesji aktualizacji wyników oraz przed zmianą schematu, bez dokładania stale działającego workera. [H2 tutorial][h2-tutorial], [kod właściwej wersji][h2-backup-source].
@@ -160,7 +193,7 @@ Proponowana retencja archiwów: 30 kolejnych kopii z datą/unikalnym identyfikat
 
 ## Risk Register
 
-L/M/H oznacza niski/średni/wysoki poziom. Oceny są jakościowe dla małego MVP; ograniczenia techniczne są faktami wskazanymi w źródłach, prawdopodobieństwa stanowią ocenę projektową.
+L/M/H oznacza niski/średni/wysoki poziom. Oceny są jakościowe dla małego MVP; ograniczenia techniczne są faktami wskazanymi w źródłach, prawdopodobieństwa stanowią ocenę projektową. Pierwotne mitigacje dotyczące kopii i restore poniżej są odroczone poza MVP decyzją właściciela z 2026-09-22; obecnie brak backupu, a ryzyko trwałej utraty danych jest zaakceptowane.
 
 | Risk | Source | Likelihood | Impact | Mitigation |
 |---|---|---|---|---|
@@ -183,7 +216,7 @@ L/M/H oznacza niski/średni/wysoki poziom. Oceny są jakościowe dla małego MVP
 
 ## Getting Started
 
-Poniższe kroki są przekazaniem do **planowania wdrożenia**, nie zapisem wykonanych czynności. Konto, usługi, domena, wolumen, bucket, sekrety i CI nie zostały utworzone. Polecenia zapisano dla CLI **5.59.0**; opcje `link`, `volume`, `up`, `domain` i `logs` zweryfikowano w dokumentacji i kodzie tej wersji. [Kod CLI][railway-cli-source].
+Poniższe kroki są historycznym przekazaniem do **planowania wdrożenia**, nie aktualnym zapisem wykonanych czynności. Ich zakres zmienił zatwierdzony [plan wdrożenia](../deployment/deploy-plan.md): trial 5 USD, bez backupów, bucketu, restore i płatnych środowisk PR. Stan utworzonych zasobów oraz CI jest w dzienniku planu. Polecenia zapisano dla CLI **5.59.0**; opcje `link`, `volume`, `up`, `domain` i `logs` zweryfikowano w dokumentacji i kodzie tej wersji. [Kod CLI][railway-cli-source].
 
 1. **Przygotować i zatwierdzić plan.** W trybie planowania odczytać ten dokument oraz `tech-stack.md`, zapisać `context/deployment/deploy-plan.md`. Uwzględnić aktualizację odniesień Fly.io, wspólne pakowanie `frontend/dist/skarb-kibica/browser/` do zasobów Springa, routing SPA z zachowaniem `/api`, migracje i backup. Sprawdzić `npm ci` oraz `npm run build` w `frontend/` i `./mvnw verify` w katalogu głównym. Aktualny Maven sam nie dołącza Angulara; automatyczne wykrycie Java nie zapewnia Node do jego budowania.
 2. **Po zatwierdzeniu planu przygotować konto i narzędzia.** Właściciel zakłada konto Hobby i ustawia rozliczenie/alerty. Zainstalować `npm install --global @railway/cli@5.59.0`, sprawdzić `railway --version`, wykonać `railway login`. Po utworzeniu projektu i usługi `backend` w Amsterdamie połączyć katalog: `railway link --project PROJECT_ID --environment production --service backend`. `PROJECT_ID` zastąpić rzeczywistym ID; pierwsze linkowanie korzysta z logowania użytkownika. Wybrać Railpack z jawnym etapem budowania frontendu lub przygotowany w następnym etapie obraz, zgodnie z zatwierdzonym planem.

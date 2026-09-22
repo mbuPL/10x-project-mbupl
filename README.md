@@ -39,7 +39,7 @@ Konfigurację można przekazać zmiennymi środowiskowymi:
 | `DB_PASSWORD` | pusta | Hasło bazy; ustaw w środowisku docelowym. |
 | `PORT` | `8080` | Port backendu; zmiana wymaga też dopasowania proxy frontendu. |
 
-Przykład z trwałym wolumenem: `DB_PATH=/data/skarb-kibica`. Wdrożenie na Fly.io wymaga jednej instancji backendu, zamontowanego trwałego wolumenu oraz kopii zapasowych poza wolumenem. Konfiguracja wdrożenia i automatyzacja kopii zapasowych pozostają do przygotowania. H2 działa jako baza osadzona w backendzie; konsola webowa jest wyłączona.
+Przykład z trwałym wolumenem: `DB_PATH=/data/skarb-kibica`. Docelowo jedna usługa Railway Hobby w Amsterdamie serwuje backend i Angulara, a H2 korzysta z wolumenu `/data`. Kontener odmawia startu bez hasła, właściwej ścieżki i rzeczywistego montowania tego wolumenu. H2 działa jako baza osadzona; konsola webowa jest wyłączona. Użytkownik zdecydował pozostawić snapshoty, eksport H2 i odtwarzanie poza MVP, akceptując ryzyko utraty danych. Trwały wolumen nie jest kopią zapasową.
 
 Automatyczne tworzenie/usuwanie schematu Hibernate jest wyłączone (`ddl-auto=none`). Przed dodaniem encji należy przygotować migracje schematu; ten szkielet nie zawiera jeszcze tabel biznesowych.
 
@@ -53,10 +53,45 @@ npm test -- --watch=false
 npm audit
 ```
 
-Test backendu sprawdza także zapis w plikowej bazie H2 i odczyt po zamknięciu oraz ponownym uruchomieniu kontekstu aplikacji. Artefakt backendu powstaje w `target/`, a frontendu w `frontend/dist/`. Są budowane osobno; proxy opisane powyżej działa podczas developmentu. Docelowy hosting frontendu i routing `/api` należy skonfigurować przy wdrożeniu.
+Test backendu sprawdza także zapis w plikowej bazie H2 i odczyt po zamknięciu oraz ponownym uruchomieniu kontekstu aplikacji. Testy HTTP sprawdzają zasoby statyczne, routing SPA oraz oddzielenie API. Lokalne artefakty powstają w `target/` i `frontend/dist/`. Dockerfile buduje oba projekty i dołącza Angulara do JAR-a; produkcja nie korzysta z proxy developmentowego.
+
+Jeśli lokalny build Angulara na macOS przerywa się w module cache LMDB, użyj `CI=1 npm run build`. Wyłącza to domyślny lokalny cache bez zmiany projektu. Kontener i GitHub Actions używają `CI=true`.
 
 Audyt Java nie jest wbudowany w bootstrapper; można osobno skonfigurować OWASP Dependency-Check lub Snyk. Wyniki przeprowadzonej weryfikacji znajdują się w [dzienniku bootstrapowania](context/changes/bootstrap-verification/verification.md).
 
+## Kontener i CI/CD
+
+Z katalogu głównego, przy dostępnym Dockerze:
+
+```sh
+docker build --tag skarb-kibica:local .
+bash scripts/smoke-container.sh skarb-kibica:local
+```
+
+Build uruchamia testy Angulara i Maven na Java 21. Test kontenera wymaga Node 24
+na hoście, sprawdza HTTP, odrzucanie błędnej konfiguracji i ponowne uruchomienie
+z tym samym wolumenem. Używa własnych tymczasowych kontenerów, hasła i danych.
+
+Publiczną instancję można sprawdzić poleceniem:
+
+```sh
+bash scripts/smoke-http.sh https://NAZWA.up.railway.app
+```
+
+Workflow GitHub Actions wykonuje check `verify` na PR i `main`. Wdrażanie
+jest początkowo wyłączone. Wymaga repozytoryjnej zmiennej
+`RAILWAY_DEPLOY_ENABLED=true` oraz środowiska GitHub `production` z sekretem
+`RAILWAY_TOKEN` i zmiennymi `PROJECT_ID`, `ENVIRONMENT_ID`, `SERVICE_ID`, `APP_URL`.
+Token należy ograniczyć do projektu i środowiska produkcyjnego Railway.
+Job wdrożeniowy działa dopiero po testach na `main`, czeka na status konkretnego
+wdrożenia i wykonuje kontrolę HTTPS. PR nie otrzymują sekretów produkcji.
+
+Konfiguracja konta, limity kosztów 8/10 USD, polecenia tworzenia zasobów,
+rollback i aktualny stan publikacji są w [zatwierdzonym planie wdrożenia](context/deployment/deploy-plan.md).
+Pierwszą publikację użytkownik zdecydował uruchomić na trial z kredytem 5 USD;
+płatne Hobby oraz limity 8/10 USD skonfiguruje później.
+Nie włączać dodatkowo natywnych autodeployów Railway ani środowisk PR.
+
 ## Zakres szkieletu
 
-Funkcje koszykarskie, logowanie administratora, migracje, CI i wdrożenie pozostają do implementacji zgodnie z [PRD](context/foundation/prd.md). Na tym etapie dostępny jest techniczny szkielet oraz kontrola stanu backendu i bazy. Dokumentacja decyzji znajduje się w [wyborze stosu](context/foundation/tech-stack.md).
+Funkcje koszykarskie, logowanie administratora i migracje pozostają do implementacji zgodnie z [PRD](context/foundation/prd.md). Na tym etapie dostępny jest techniczny szkielet, kontrola stanu backendu i bazy oraz konfiguracja kontenera i CI/CD. Publikacja wymaga konta Railway i podłączenia sekretów; samo istnienie workflow nie oznacza wdrożonej produkcji. Dokumentacja decyzji znajduje się w [wyborze stosu](context/foundation/tech-stack.md).

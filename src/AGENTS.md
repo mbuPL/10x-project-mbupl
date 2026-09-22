@@ -25,7 +25,7 @@ Follow @main/java/pl/skarbkibica/SkarbKibicaApplication.java: tab indentation an
 
 Use JUnit Jupiter and AssertJ, with classes named `*Tests.java`. Name test methods in camelCase to state the expected behavior and condition, as in `dataSurvivesApplicationRestart` in @test/java/pl/skarbkibica/H2PersistenceTests.java. Follow @test/java/pl/skarbkibica/SkarbKibicaApplicationTests.java for context tests using in-memory H2.
 
-For persistence changes, follow @test/java/pl/skarbkibica/H2PersistenceTests.java: use `@TempDir`, close the application context, then reopen the same database and assert retained data. No coverage threshold or CI workflow is currently configured; run `./mvnw verify` locally.
+For persistence changes, follow @test/java/pl/skarbkibica/H2PersistenceTests.java: use `@TempDir`, close the application context, then reopen the same database and assert retained data. For static hosting and SPA changes, follow @test/java/pl/skarbkibica/SpaRoutingTests.java: use its isolated test assets and preserve API errors and missing-asset responses. Run `./mvnw verify` locally; deployment CI also runs these checks on Java 21. No coverage threshold is configured.
 
 ## Commit and Pull Request Guidelines
 
