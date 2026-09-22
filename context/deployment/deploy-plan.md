@@ -85,9 +85,32 @@ Przed utworzeniem wolumenu ustawić konfigurację:
 railway api 'mutation($serviceId:String!,$environmentId:String!,$input:ServiceInstanceUpdateInput!){serviceInstanceUpdate(serviceId:$serviceId,environmentId:$environmentId,input:$input)}' \
   --raw-var "serviceId=$SERVICE_ID" \
   --raw-var "environmentId=$ENVIRONMENT_ID" \
-  --var 'input={"rootDirectory":"/","dockerfilePath":"Dockerfile","healthcheckPath":"/api/health","healthcheckTimeout":300,"region":"europe-west4-drams3a","numReplicas":1,"sleepApplication":false,"restartPolicyType":"ON_FAILURE","restartPolicyMaxRetries":3}' \
+  --var 'input={"rootDirectory":"/","dockerfilePath":"Dockerfile","healthcheckPath":"/api/health","healthcheckTimeout":300,"numReplicas":1,"sleepApplication":false,"restartPolicyType":"ON_FAILURE","restartPolicyMaxRetries":3}' \
   --compact
 ```
+
+Region wymaga osobnej konfiguracji środowiska przed utworzeniem wolumenu.
+Weryfikacja live wykazała, że legacy `serviceInstanceUpdate.region` nie zmienia
+`deploy.multiRegionConfig`, a odczyt `serviceInstance.region` pozostaje null.
+CLI 5.59.0 ma też błąd parsowania `railway scale --project`; użyć jawnego API:
+
+```sh
+railway api 'mutation($environmentId:String!,$input:EnvironmentConfig!){environmentStageChanges(environmentId:$environmentId,input:$input,merge:true){id status}}' \
+  --raw-var "environmentId=$ENVIRONMENT_ID" \
+  --var "input={\"services\":{\"$SERVICE_ID\":{\"deploy\":{\"multiRegionConfig\":{\"sfo\":null,\"europe-west4-drams3a\":{\"numReplicas\":1}}}}}}" \
+  --compact
+railway api 'mutation($environmentId:String!){environmentPatchCommitStaged(environmentId:$environmentId,skipDeploys:true,commitMessage:"Set Amsterdam before creating volume")}' \
+  --raw-var "environmentId=$ENVIRONMENT_ID" --compact
+```
+
+Przed commitowaniem sprawdzić nazwy i zakres staged zmian bez odczytu wartości
+sekretów. Weryfikować rzeczywistą konfigurację środowiska i region utworzonego
+wolumenu; sama odpowiedź mutacji `true` nie stanowi potwierdzenia lokalizacji.
+Istniejący wolumen przenosi się wraz ze zmianą regionu usługi przy następnym
+deploymentcie. Po `skipDeploys:true` konfiguracja usługi może już wskazywać
+Amsterdam, a fizyczny wolumen nadal `sfo`. Pierwsze wdrożenie należy obserwować
+do zakończenia migracji i potwierdzenia regionu oraz stanu `READY`; nie usuwać
+ani nie odłączać wolumenu. [Migracja regionu](https://docs.railway.com/deployments/regions#volumes).
 
 W panelu usługi ustawić limit **1 vCPU / 1 GB RAM**. JVM ma
 `-Xmx256m -XX:+ExitOnOutOfMemoryError`; limit kontenera uwzględnia pamięć poza
@@ -174,14 +197,16 @@ Podsumowanie joba zapisuje SHA, ID wdrożenia i URL, bez wartości sekretów.
 | Environment ID | `948f164e-3d86-4795-9414-e770dd8d3a91` (`production`) |
 | Service ID | `af163e6c-7d97-4dff-9b52-8d75f1e7d3a9` (`backend`) |
 | Konfiguracja usługi | Amsterdam, Dockerfile, jedna replika, sleep off, `/api/health`, timeout 300 s, ON_FAILURE/3, limit 1 vCPU / 1 GB; zapisane przez API |
-| GitHub | CLI połączone; environment `production` dopuszcza wyłącznie `main`; `RAILWAY_DEPLOY_ENABLED=false` |
-| Domena produkcji | Nieutworzona |
-| Sekrety Railway / GitHub | Niepodłączone |
+| GitHub | CLI połączone; environment `production` dopuszcza wyłącznie `main`; `RAILWAY_DEPLOY_ENABLED=false`; main wymaga PR i udanego checka `verify` |
+| Pull request | [#1](https://github.com/mbuPL/10x-project-mbupl/pull/1), commit `c8daf221f647e619b80663c013b19cae0f1d0757` |
+| Domena produkcji | `https://backend-production-21c1.up.railway.app` — domena utworzona, aplikacja jeszcze nieopublikowana |
+| Wolumen | `3b76aa77-f42a-4b90-9fc7-78f2fb69f74e`; instance `73c27ca5-90da-41e7-883f-18024f2eaa96`, 500 MB trial, `/data`; weryfikacja/migracja regionu przed publikacją |
+| Sekrety Railway / GitHub | Właściciel potwierdził sealed `DB_PASSWORD`; zmiana zatwierdzona w środowisku. `RAILWAY_TOKEN` zapisany przez właściciela w GitHub production, potwierdzono wyłącznie nazwę sekretu |
 | Publikacja / rollback / pomiary | Niewykonane |
 | Testy Java 21.0.6 | 38 PASS, w tym 36 przypadków HTTP SPA i trwałość rekordów H2 |
 | Testy skryptu wdrażania | 25 PASS, obejmujące sukces właściwego ID, błędy, timeout i nieaktualny SHA |
 | Zintegrowany JAR | Zbudowany w katalogu tymczasowym z Angulariem; pełny `smoke-http.sh` PASS na Java 21 |
-| Test kontenera Linux | Oczekuje na GitHub Actions; lokalnie brak Dockera |
+| Test kontenera Linux | [CI 35776436948](https://github.com/mbuPL/10x-project-mbupl/actions/runs/35776436948) PASS: Node 24.20.0, Java 21.0.12, 38 testów backendu, 2 frontendowe, 25 testów skryptu, 5 błędnych konfiguracji startu, HTTP oraz restart i wymiana kontenera |
 
 Wpisy będą aktualizowane na podstawie wykonanych kontroli; przygotowany kod
 nie oznacza wdrożonej produkcji.
