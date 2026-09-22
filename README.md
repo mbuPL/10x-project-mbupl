@@ -39,7 +39,7 @@ Konfigurację można przekazać zmiennymi środowiskowymi:
 | `DB_PASSWORD` | pusta | Hasło bazy; ustaw w środowisku docelowym. |
 | `PORT` | `8080` | Port backendu; zmiana wymaga też dopasowania proxy frontendu. |
 
-Przykład z trwałym wolumenem: `DB_PATH=/data/skarb-kibica`. Docelowo jedna usługa Railway Hobby w Amsterdamie serwuje backend i Angulara, a H2 korzysta z wolumenu `/data`. Kontener odmawia startu bez hasła, właściwej ścieżki i rzeczywistego montowania tego wolumenu. H2 działa jako baza osadzona; konsola webowa jest wyłączona. Dzienne snapshoty wymagają konfiguracji w Railway. Eksport H2 poza wolumen i sprawdzone odtwarzanie są obowiązkowe przed przyjęciem rzeczywistych danych, ale nie należą do pierwszego wdrożenia szkieletu.
+Przykład z trwałym wolumenem: `DB_PATH=/data/skarb-kibica`. Docelowo jedna usługa Railway Hobby w Amsterdamie serwuje backend i Angulara, a H2 korzysta z wolumenu `/data`. Kontener odmawia startu bez hasła, właściwej ścieżki i rzeczywistego montowania tego wolumenu. H2 działa jako baza osadzona; konsola webowa jest wyłączona. Użytkownik zdecydował pozostawić snapshoty, eksport H2 i odtwarzanie poza MVP, akceptując ryzyko utraty danych. Trwały wolumen nie jest kopią zapasową.
 
 Automatyczne tworzenie/usuwanie schematu Hibernate jest wyłączone (`ddl-auto=none`). Przed dodaniem encji należy przygotować migracje schematu; ten szkielet nie zawiera jeszcze tabel biznesowych.
 

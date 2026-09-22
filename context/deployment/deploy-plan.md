@@ -30,9 +30,14 @@ zmianą. Nie aktywować płatnej subskrypcji automatycznie. API obecnie zwraca p
 HOBBY bez aktywnej subskrypcji; odrzuca ustawianie limitów. Dostępność po końcu
 okresu/kredytu nie jest zapewniona; konfiguracja zasobów musi mieścić się w trial.
 
-Pełny eksport H2 do prywatnego bucketu i test odtwarzania są odłożone do etapu
-przed przyjęciem rzeczywistych danych. W tym wdrożeniu nie powstają funkcje
-koszykarskie, konto administratora ani migracje pustego schematu.
+**Aktualizacja użytkownika podczas implementacji, 2026-09-22:** panel Railway
+wskazuje kopie jako opcję planu Pro. Użytkownik zdecydował nie włączać backupów
+i zaakceptował ryzyko utraty danych. Snapshoty, eksport H2 do bucketu oraz
+odtwarzanie są **poza MVP**, bez bramki blokującej przyszłe dane biznesowe.
+To zastępuje pierwotny warunek przygotowania kopii przed rzeczywistymi danymi.
+Trwały wolumen pozostaje wymagany, ale nie jest kopią zapasową.
+W tym wdrożeniu nie powstają funkcje koszykarskie, konto administratora ani
+migracje pustego schematu.
 
 Plan zaakceptowano przed zmianami infrastruktury. Poniższe kroki określają
 zamierzone wykonanie; wynik i niewykonane działania rejestruje końcowy dziennik.
@@ -128,7 +133,7 @@ railway domain --project "$PROJECT_ID" --environment production \
 ```
 
 - `DB_PASSWORD`: sealed variable w Railway, ustawiona przed pierwszym startem.
-- Wolumen: domyślna pojemność Hobby, dzienne snapshoty z retencją 6 dni.
+- Wolumen: 500 MB w aktualnym trial; backupy wyłączone zgodnie z decyzją użytkownika.
 - Domena: wygenerowane `*.up.railway.app`, port 8080, zapisać URL jako `APP_URL`.
 - Właściciel tworzy Project Token wyłącznie dla `production`.
 - GitHub environment `production`: sekret `RAILWAY_TOKEN`, zmienne
@@ -182,8 +187,8 @@ Podsumowanie joba zapisuje SHA, ID wdrożenia i URL, bez wartości sekretów.
 - Po dwóch udanych wdrożeniach przećwiczyć Railway Deployments → poprzednie
   wdrożenie → Rollback; sprawdzić stronę, health i wolumen, zapisać czas.
   Rollback kodu nie cofa H2. Usuwanie zasobów i rotacja sekretów należą do właściciela.
-- Snapshoty nie są sprawdzonym eksportem H2. Przed rzeczywistymi danymi wdrożyć
-  uwierzytelnianie administratora, migracje, spójny eksport poza wolumen i test restore.
+- Przed rzeczywistymi danymi wdrożyć uwierzytelnianie administratora i migracje.
+  Backupy i restore pozostają poza MVP; ryzyko utraty danych zostało zaakceptowane.
 
 ## Dziennik wykonania
 
@@ -202,6 +207,7 @@ Podsumowanie joba zapisuje SHA, ID wdrożenia i URL, bez wartości sekretów.
 | Domena produkcji | `https://backend-production-21c1.up.railway.app` — domena utworzona, aplikacja jeszcze nieopublikowana |
 | Wolumen | `3b76aa77-f42a-4b90-9fc7-78f2fb69f74e`; instance `73c27ca5-90da-41e7-883f-18024f2eaa96`, 500 MB trial, `/data`; weryfikacja/migracja regionu przed publikacją |
 | Sekrety Railway / GitHub | Właściciel potwierdził sealed `DB_PASSWORD`; zmiana zatwierdzona w środowisku. `RAILWAY_TOKEN` zapisany przez właściciela w GitHub production, potwierdzono wyłącznie nazwę sekretu |
+| Backupy | Wyłączone. API odrzuciło ustawienie harmonogramu; właściciel potwierdził w panelu wymóg Pro i zaakceptował brak backupów w MVP |
 | Publikacja / rollback / pomiary | Niewykonane |
 | Testy Java 21.0.6 | 38 PASS, w tym 36 przypadków HTTP SPA i trwałość rekordów H2 |
 | Testy skryptu wdrażania | 25 PASS, obejmujące sukces właściwego ID, błędy, timeout i nieaktualny SHA |
