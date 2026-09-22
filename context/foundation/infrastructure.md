@@ -44,6 +44,31 @@ Docelowy wariant MVP: jedna usługa `backend`, która po przygotowaniu wspólneg
 
 ## Platform Comparison
 
+### Ustalenia wykonawcze zaakceptowane 2026-09-22
+
+Zatwierdzony [plan pierwszego wdrożenia](../deployment/deploy-plan.md) konkretyzuje
+poniższą historię operacyjną dla szkieletu:
+
+- Podczas implementacji użytkownik wybrał pierwszą publikację na okresie próbnym
+  z kredytem 5 USD; płatne Hobby i limity 8/10 USD ustawi później. Nie aktywować
+  subskrypcji automatycznie. Rekomendacja Hobby dotyczy docelowego utrzymania,
+  a trial nie zapewnia ciągłości po wyczerpaniu kredytu lub upływie okresu.
+
+- Publikacja przez GitHub Actions po kontrolach PR i merge do `main`; wspólny
+  obraz Docker buduje Angulara i Spring Boot. Runtime: jedna JVM 21.
+- W pierwszym etapie wyłącznie `production`; zamiast płatnych PR Environments
+  testy gotowego kontenera w GitHub Actions. Opis PR Environments poniżej
+  pozostaje możliwością na późniejszy etap.
+- Alert kosztów 8 USD, hard limit 10 USD; użytkownik akceptuje ryzyko zatrzymania
+  aplikacji. Sleep pozostaje wyłączony.
+- Dzienne snapshoty wolumenu w pierwszym wdrożeniu. Bucket, spójny eksport H2
+  i udany restore wymagane przed danymi biznesowymi; nie są jeszcze wdrożone.
+- Konfiguracja usługi przez CLI/API i Dockerfile. Nie tworzyć `railway.toml/json`:
+  [Config as Code jest wycofywane](https://docs.railway.com/infrastructure-as-code).
+- Aktywny kontrakt stacka i README zostają uzgodnione z Railway. Stan wykonania,
+  identyfikatory zasobów oraz faktyczne testy zapisuje plan wdrożenia; historyczne
+  dzienniki bootstrapowania zachowują ówczesne założenia.
+
 ### Hard compatibility filters
 
 Brak WebSocketów nie usuwa wymogu trwałego dysku. Oceniana jest możliwość uruchomienia **całej aplikacji Java + Angular + plikowe H2**, bez przepisywania backendu i wymiany bazy.
